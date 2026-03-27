@@ -1,0 +1,165 @@
+{
+  "info": {
+    "name": "Car Rental API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Get JWT Token (admin)",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:8081/api/v1/auth",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {"key": "username", "value": "admin", "type": "string"},
+                {"key": "password", "value": "admin123", "type": "string"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get JWT Token (customer)",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:8081/api/v1/auth",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {"key": "username", "value": "customer", "type": "string"},
+                {"key": "password", "value": "customer123", "type": "string"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Users",
+      "item": [
+        {
+          "name": "Register New User",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:8081/api/v1/users/register",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"password\": \"pass123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"role\": \"customer\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Search User by Login",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8081/api/v1/users/search?login=newuser",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          }
+        },
+        {
+          "name": "Search Users by Mask",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8081/api/v1/users/search?name=J*",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{adminToken}}", "type": "string"}]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Cars",
+      "item": [
+        {
+          "name": "Get Available Cars",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8081/api/v1/cars"
+          }
+        },
+        {
+          "name": "Search Cars by Class",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8081/api/v1/cars/search?class=compact"
+          }
+        },
+        {
+          "name": "Add New Car (Manager only)",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:8081/api/v1/cars",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{managerToken}}", "type": "string"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Tesla Model Y\",\n  \"licensePlate\": \"TESLA01\",\n  \"class\": \"electric\",\n  \"pricePerDay\": 110.0,\n  \"year\": 2024,\n  \"color\": \"Blue\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Rentals",
+      "item": [
+        {
+          "name": "Create Rental",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:8081/api/v1/rentals",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{customerToken}}", "type": "string"}]},
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"carId\": \"{{carId}}\",\n  \"startDate\": \"2025-04-01T10:00:00\",\n  \"endDate\": \"2025-04-05T10:00:00\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Active Rentals",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8081/api/v1/rentals/active",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{customerToken}}", "type": "string"}]}
+          }
+        },
+        {
+          "name": "Complete Rental",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:8081/api/v1/rentals/{{rentalId}}/complete",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{customerToken}}", "type": "string"}]}
+          }
+        },
+        {
+          "name": "Get Rental History",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8081/api/v1/rentals/history",
+            "auth": {"type": "bearer", "bearer": [{"key": "token", "value": "{{customerToken}}", "type": "string"}]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Utilities",
+      "item": [
+        {
+          "name": "Hello World",
+          "request": {"method": "GET", "url": "http://localhost:8081/api/v1/helloworld"}
+        },
+        {
+          "name": "Swagger Documentation",
+          "request": {"method": "GET", "url": "http://localhost:8081/swagger.yaml"}
+        },
+        {
+          "name": "Metrics",
+          "request": {"method": "GET", "url": "http://localhost:8081/metrics"}
+        }
+      ]
+    }
+  ]
+}

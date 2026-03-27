@@ -1,0 +1,532 @@
+openapi: 3.0.3
+info:
+  title: Car Rental API
+  description: |
+    Система управления арендой автомобилей
+    
+    ### Роли пользователей:
+    - **customer** - обычный клиент (может арендовать авто, смотреть свои аренды)
+    - **fleetManager** - менеджер автопарка (может добавлять автомобили)
+    - **admin** - администратор (имеет все права)
+    
+    ### Аутентификация:
+    1. Получите JWT токен через POST /api/v1/auth (Basic Auth)
+    2. Используйте токен в заголовке: `Authorization: Bearer <token>`
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@carrental.com
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+
+tags:
+  - name: Auth
+    description: Аутентификация
+  - name: Users
+    description: Управление пользователями
+  - name: Cars
+    description: Управление автопарком
+  - name: Rentals
+    description: Управление арендой
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT токен, полученный при аутентификации
+    
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Basic authentication (username/password)
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Error message"
+
+    User:
+      type: object
+      properties:
+        username:
+          type: string
+          example: "john_doe"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        role:
+          type: string
+          enum: [customer, fleetManager, admin]
+          example: "customer"
+        email:
+          type: string
+          example: "john@example.com"
+
+    UserCreate:
+      type: object
+      required:
+        - username
+        - password
+        - firstName
+        - lastName
+      properties:
+        username:
+          type: string
+          minLength: 3
+          example: "john_doe"
+        password:
+          type: string
+          minLength: 6
+          example: "secure123"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        role:
+          type: string
+          enum: [customer, fleetManager, admin]
+          default: customer
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+
+    Car:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "ABC123_12345"
+        model:
+          type: string
+          example: "Toyota Camry"
+        licensePlate:
+          type: string
+          example: "ABC123"
+        class:
+          type: string
+          enum: [compact, midsize, luxury, suv, electric]
+          example: "midsize"
+        available:
+          type: boolean
+          example: true
+        pricePerDay:
+          type: number
+          format: double
+          example: 65.0
+        year:
+          type: integer
+          example: 2022
+        color:
+          type: string
+          example: "Silver"
+
+    CarCreate:
+      type: object
+      required:
+        - model
+        - licensePlate
+        - class
+      properties:
+        model:
+          type: string
+          example: "Tesla Model 3"
+        licensePlate:
+          type: string
+          example: "TESLA01"
+        class:
+          type: string
+          enum: [compact, midsize, luxury, suv, electric]
+          example: "electric"
+        pricePerDay:
+          type: number
+          default: 50.0
+          example: 95.0
+        year:
+          type: integer
+          default: 2020
+          example: 2023
+        color:
+          type: string
+          default: "White"
+          example: "Red"
+
+    Rental:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "RENT_1743552000_123"
+        userId:
+          type: string
+          example: "customer"
+        carId:
+          type: string
+          example: "ABC123_12345"
+        carModel:
+          type: string
+          example: "Toyota Camry"
+        carClass:
+          type: string
+          example: "midsize"
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-04-01T10:00:00"
+        endDate:
+          type: string
+          format: date-time
+          example: "2025-04-05T10:00:00"
+        actualEndDate:
+          type: string
+          format: date-time
+          nullable: true
+        days:
+          type: integer
+          example: 4
+        pricePerDay:
+          type: number
+          example: 65.0
+        totalPrice:
+          type: number
+          example: 260.0
+        status:
+          type: string
+          enum: [active, completed, early_completed, cancelled]
+          example: "active"
+
+    RentalCreate:
+      type: object
+      required:
+        - carId
+        - startDate
+        - endDate
+      properties:
+        carId:
+          type: string
+          example: "ABC123_12345"
+        startDate:
+          type: string
+          format: date-time
+          example: "2025-04-01T10:00:00"
+        endDate:
+          type: string
+          format: date-time
+          example: "2025-04-05T10:00:00"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        username:
+          type: string
+          example: "admin"
+        role:
+          type: string
+          example: "admin"
+
+paths:
+  # ==================== AUTH ====================
+  /api/v1/auth:
+    post:
+      tags:
+        - Auth
+      summary: Получение JWT токена
+      description: Аутентификация через Basic Auth
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== USERS ====================
+  /api/v1/users/register:
+    post:
+      tags:
+        - Users
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Отсутствуют обязательные поля
+        '409':
+          description: Имя пользователя уже существует
+
+  /api/v1/users/search:
+    get:
+      tags:
+        - Users
+      summary: Поиск пользователей
+      description: Поиск по логину или по маске имени/фамилии (требует прав админа)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: login
+          in: query
+          schema:
+            type: string
+          description: Точное совпадение логина
+        - name: name
+          in: query
+          schema:
+            type: string
+          description: Маска имени (поддерживает * и ?)
+        - name: surname
+          in: query
+          schema:
+            type: string
+          description: Маска фамилии (поддерживает * и ?)
+      responses:
+        '200':
+          description: Найденные пользователи
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Требуется аутентификация
+        '403':
+          description: Требуются права администратора
+
+  # ==================== CARS ====================
+  /api/v1/cars:
+    get:
+      tags:
+        - Cars
+      summary: Получить список доступных автомобилей
+      responses:
+        '200':
+          description: Список доступных автомобилей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Car'
+    
+    post:
+      tags:
+        - Cars
+      summary: Добавить новый автомобиль
+      description: Требует прав менеджера или администратора
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarCreate'
+      responses:
+        '201':
+          description: Автомобиль добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+        '401':
+          description: Требуется аутентификация
+        '403':
+          description: Недостаточно прав
+
+  /api/v1/cars/search:
+    get:
+      tags:
+        - Cars
+      summary: Поиск автомобилей по классу
+      parameters:
+        - name: class
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [compact, midsize, luxury, suv, electric]
+          description: Класс автомобиля
+      responses:
+        '200':
+          description: Найденные автомобили
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Car'
+
+  # ==================== RENTALS ====================
+  /api/v1/rentals:
+    post:
+      tags:
+        - Rentals
+      summary: Создать новую аренду
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RentalCreate'
+      responses:
+        '201':
+          description: Аренда создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rental'
+        '400':
+          description: Неверные данные
+        '401':
+          description: Требуется аутентификация
+        '404':
+          description: Автомобиль не найден
+        '409':
+          description: Автомобиль уже забронирован
+
+  /api/v1/rentals/active:
+    get:
+      tags:
+        - Rentals
+      summary: Получить активные аренды
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+          description: ID пользователя (только для администратора)
+      responses:
+        '200':
+          description: Список активных аренд
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rental'
+
+  /api/v1/rentals/history:
+    get:
+      tags:
+        - Rentals
+      summary: Получить историю аренд
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+          description: ID пользователя (только для администратора)
+      responses:
+        '200':
+          description: История аренд
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rental'
+
+  /api/v1/rentals/{id}/complete:
+    put:
+      tags:
+        - Rentals
+      summary: Досрочное завершение аренды
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID аренды
+      responses:
+        '200':
+          description: Аренда завершена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  actualEndDate:
+                    type: string
+                  totalPrice:
+                    type: number
+                  message:
+                    type: string
+        '401':
+          description: Требуется аутентификация
+        '403':
+          description: Нет прав
+        '404':
+          description: Аренда не найдена
+
+  # ==================== UTILITIES ====================
+  /api/v1/helloworld:
+    get:
+      tags:
+        - Utilities
+      summary: Тестовый endpoint
+      responses:
+        '200':
+          description: Hello World
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Hello, World!"
+
+  /metrics:
+    get:
+      tags:
+        - Utilities
+      summary: Prometheus метрики
+      responses:
+        '200':
+          description: Метрики в формате Prometheus
